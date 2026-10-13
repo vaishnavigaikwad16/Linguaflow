@@ -70,13 +70,29 @@ def save_history(src_lang, target, original, translated):
                             encoding="utf-8")
 
 
+def release_hotkey_keys():
+    """The user is still physically holding the hotkey, so the target app would see
+    Ctrl+Alt+C instead of Ctrl+C. Release the extra keys first."""
+    for k in ("alt", "shift", "windows", "t", "r"):
+        try:
+            keyboard.release(k)
+        except Exception:
+            pass
+    time.sleep(0.08)
+
+
 def grab_selection():
     """Copy the current selection via Ctrl+C and return it, restoring the clipboard."""
     previous = pyperclip.paste()
     pyperclip.copy("")
+    release_hotkey_keys()
     keyboard.send("ctrl+c")
-    time.sleep(0.15)
-    text = pyperclip.paste().strip()
+    text = ""
+    for _ in range(12):          # wait up to ~1.2s for the app to fill the clipboard
+        time.sleep(0.1)
+        text = pyperclip.paste().strip()
+        if text:
+            break
     if not text:
         pyperclip.copy(previous)
     return text
@@ -154,7 +170,7 @@ def on_reply():
         overlay.show("LinguaFlow - error", draft, f"Translation failed: {exc}")
         return
     pyperclip.copy(out)
-    time.sleep(0.1)
+    release_hotkey_keys()
     keyboard.send("ctrl+v")  # paste into the focused chat box
     save_history(CONFIG["target_language"], target, draft, out)
     overlay.show(f"REPLY  ->  {target.upper()}", draft, out)
